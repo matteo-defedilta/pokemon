@@ -20,11 +20,10 @@ export const getFeaturedCards = async (
 	orderBy?: string,
 	q?: string
 ) => {
-	const params = {
-		pageSize: pageSize,
-		orderBy: orderBy, //'-set.releaseDate'
-		q: q,
-	};
+	console.time('API getFeaturedCards');
+	const params = { pageSize, orderBy, q };
 	const response = await instance.get('/cards', { params });
+	console.log(response.data); // <-- tempo rete
+	console.timeEnd('API getFeaturedCards'); // <-- tempo rete
 	return response.data;
 };

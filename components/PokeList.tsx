@@ -1,7 +1,10 @@
-/* eslint-disable @next/next/no-img-element */
 'use client';
-import { getFeaturedCards, getCards } from '@/services/pokemon-tcg';
+
 import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { addCard } from '@/services/myCardsSlice';
+import { RootState } from '@/store';
+import { getFeaturedCards, getCards } from '@/services/pokemon-tcg';
 import Pokeloader from '@/public/pokeloader/Pokeloader';
 
 interface IPokeListProps {
@@ -11,53 +14,78 @@ interface IPokeListProps {
 	q?: string;
 }
 
+interface Card {
+	id: string;
+	name: string;
+	images: {
+		small: string;
+		large: string;
+	};
+	supertype?: string;
+	subtypes?: string[];
+}
+
 const PokeList: React.FC<IPokeListProps> = ({
 	title,
 	pageSize = 10,
 	orderBy,
 	q,
 }) => {
-	const [featuredCards, setFeaturedCards] = useState<any[]>([]);
+	const [featuredCards, setFeaturedCards] = useState<Card[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
-	//const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(true);
+	const [noResults, setNoResults] = useState(false);
 
+	const dispatch = useDispatch();
+	const myCards = useSelector((state: RootState) => state.myCards.value);
+
+	// Fetch featured cards
 	useEffect(() => {
 		const fetchFeaturedCards = async () => {
 			try {
-				//setLoading(true);
+				setLoading(true);
 				const data = await getFeaturedCards(pageSize, orderBy, q);
-				console.log(data);
 				setFeaturedCards(data.data);
+				setNoResults(data.data.length === 0);
 			} catch (error) {
 				console.error('Error fetching featured cards:', error);
+				setNoResults(true);
 			} finally {
-				//setLoading(false);
+				setLoading(false);
 			}
 		};
-
 		fetchFeaturedCards();
 	}, [pageSize, orderBy, q]);
-
+	useEffect(() => {
+		console.log('Cards updated:', featuredCards.length);
+	}, [featuredCards]);
+	// Handle search
 	const handleSearch = async () => {
 		try {
+			setLoading(true);
+			setNoResults(false);
 			setFeaturedCards([]);
 			const data = await getCards({
 				orderBy: '-set.releaseDate',
 				q: `name:${searchTerm}*`,
 			});
 			if (data.data.length === 0) {
-				setFeaturedCards([0]);
+				setNoResults(true);
 			} else {
 				setFeaturedCards(data.data);
 			}
 		} catch (error) {
 			console.error('Error searching cards:', error);
+			setNoResults(true);
+		} finally {
+			setLoading(false);
 		}
 	};
 
 	return (
 		<div className='container mx-auto p-4'>
 			<h1 className='text-2xl font-bold mb-4'>{title}</h1>
+
 			<div className='flex gap-2 pb-4'>
 				<input
 					type='text'
@@ -73,23 +101,40 @@ const PokeList: React.FC<IPokeListProps> = ({
 					Search
 				</button>
 			</div>
-			{featuredCards.length === 0 ||
-			(featuredCards[0] === 0 && 'No cards found') ? (
-				<div>{featuredCards[0] === 0 ? 'No cards found' : <Pokeloader />}</div>
-			) : (
+
+			{loading && <Pokeloader />}
+			{noResults && <div>No cards found</div>}
+
+			{!loading && !noResults && (
 				<div className='grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2'>
-					{featuredCards.map((card) => (
-						<div key={card.id} className='border p-4 rounded shadow'>
-							<img
-								src={card.images.small}
-								alt={card.name}
-								className='w-full h-auto'
-							/>
-							<h2 className='text-xl mt-2'>{card.name}</h2>
-							<p>{card.supertype}</p>
-							<p>{card.subtypes?.join(', ')}</p>
-						</div>
-					))}
+					{featuredCards.map((card) => {
+						const isAdded = myCards.some((c) => c.id === card.id);
+						return (
+							<div key={card.id} className='border p-4 rounded shadow'>
+								<img
+									src={card.images.small}
+									alt={card.name}
+									className='w-full h-auto'
+									loading='lazy'
+								/>
+
+								<h2 className='text-xl mt-2'>{card.name}</h2>
+								<p>{card.supertype}</p>
+								<p>{card.subtypes?.join(', ')}</p>
+								<button
+									onClick={() => !isAdded && dispatch(addCard(card))}
+									disabled={isAdded}
+									className={`px-2 py-1 mt-2 rounded ${
+										isAdded
+											? 'bg-gray-400 text-white'
+											: 'bg-green-500 text-white'
+									}`}
+								>
+									{isAdded ? 'Carta aggiunta!' : 'Aggiungi carta'}
+								</button>
+							</div>
+						);
+					})}
 				</div>
 			)}
 		</div>
