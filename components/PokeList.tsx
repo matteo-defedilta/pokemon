@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { setFeaturedCards } from '@/services/featuredCardsSlice';
 import { addCard } from '@/services/myCardsSlice';
 import { RootState } from '@/store';
 import { getFeaturedCards, getCards } from '@/services/pokemon-tcg';
@@ -31,21 +32,23 @@ const PokeList: React.FC<IPokeListProps> = ({
 	orderBy,
 	q,
 }) => {
-	const [featuredCards, setFeaturedCards] = useState<Card[]>([]);
+	const dispatch = useDispatch();
+	const featuredCards = useSelector(
+		(state: RootState) => state.featuredCards.value
+	);
+	const myCards = useSelector((state: RootState) => state.myCards.value);
+
 	const [searchTerm, setSearchTerm] = useState('');
 	const [loading, setLoading] = useState(true);
 	const [noResults, setNoResults] = useState(false);
 
-	const dispatch = useDispatch();
-	const myCards = useSelector((state: RootState) => state.myCards.value);
-
-	// Fetch featured cards
+	// 🔹 Solo se non ci sono carte in Redux, chiamiamo l’API
 	useEffect(() => {
 		const fetchFeaturedCards = async () => {
 			try {
 				setLoading(true);
 				const data = await getFeaturedCards(pageSize, orderBy, q);
-				setFeaturedCards(data.data);
+				dispatch(setFeaturedCards(data.data));
 				setNoResults(data.data.length === 0);
 			} catch (error) {
 				console.error('Error fetching featured cards:', error);
@@ -54,25 +57,28 @@ const PokeList: React.FC<IPokeListProps> = ({
 				setLoading(false);
 			}
 		};
-		fetchFeaturedCards();
-	}, [pageSize, orderBy, q]);
-	useEffect(() => {
-		console.log('Cards updated:', featuredCards.length);
-	}, [featuredCards]);
-	// Handle search
+
+		if (featuredCards.length === 0) {
+			fetchFeaturedCards();
+		} else {
+			setLoading(false);
+		}
+	}, [pageSize, orderBy, q, dispatch, featuredCards.length]);
+
+	// 🔹 Ricerca carte (aggiorna Redux)
 	const handleSearch = async () => {
 		try {
 			setLoading(true);
 			setNoResults(false);
-			setFeaturedCards([]);
 			const data = await getCards({
 				orderBy: '-set.releaseDate',
 				q: `name:${searchTerm}*`,
 			});
 			if (data.data.length === 0) {
 				setNoResults(true);
+				dispatch(setFeaturedCards([]));
 			} else {
-				setFeaturedCards(data.data);
+				dispatch(setFeaturedCards(data.data));
 			}
 		} catch (error) {
 			console.error('Error searching cards:', error);
@@ -117,7 +123,6 @@ const PokeList: React.FC<IPokeListProps> = ({
 									className='w-full h-auto'
 									loading='lazy'
 								/>
-
 								<h2 className='text-xl mt-2'>{card.name}</h2>
 								<p>{card.supertype}</p>
 								<p>{card.subtypes?.join(', ')}</p>
