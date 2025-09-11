@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setFeaturedCards } from '@/services/featuredCardsSlice';
+import {
+	setFeaturedCards,
+	setSearchResults,
+} from '@/services/featuredCardsSlice';
 import { addCard } from '@/services/myCardsSlice';
 import { RootState } from '@/store';
 import { getFeaturedCards, getCards } from '@/services/pokemon-tcg';
@@ -33,8 +36,8 @@ const PokeList: React.FC<IPokeListProps> = ({
 	q,
 }) => {
 	const dispatch = useDispatch();
-	const featuredCards = useSelector(
-		(state: RootState) => state.featuredCards.value
+	const { value: featuredCards, isSearchActive } = useSelector(
+		(state: RootState) => state.featuredCards
 	);
 	const myCards = useSelector((state: RootState) => state.myCards.value);
 
@@ -42,7 +45,7 @@ const PokeList: React.FC<IPokeListProps> = ({
 	const [loading, setLoading] = useState(true);
 	const [noResults, setNoResults] = useState(false);
 
-	// 🔹 Solo se non ci sono carte in Redux, chiamiamo l’API
+	// 🔹 Al primo render controlliamo lo stato
 	useEffect(() => {
 		const fetchFeaturedCards = async () => {
 			try {
@@ -58,14 +61,15 @@ const PokeList: React.FC<IPokeListProps> = ({
 			}
 		};
 
-		if (featuredCards.length === 0) {
+		if (featuredCards.length === 0 || isSearchActive) {
+			// Se cache vuota o era una ricerca → forziamo fetch default
 			fetchFeaturedCards();
 		} else {
 			setLoading(false);
 		}
-	}, [pageSize, orderBy, q, dispatch, featuredCards.length]);
+	}, [pageSize, orderBy, q, dispatch]);
 
-	// 🔹 Ricerca carte (aggiorna Redux)
+	// 🔹 Ricerca carte
 	const handleSearch = async () => {
 		try {
 			setLoading(true);
@@ -76,9 +80,9 @@ const PokeList: React.FC<IPokeListProps> = ({
 			});
 			if (data.data.length === 0) {
 				setNoResults(true);
-				dispatch(setFeaturedCards([]));
+				dispatch(setSearchResults([]));
 			} else {
-				dispatch(setFeaturedCards(data.data));
+				dispatch(setSearchResults(data.data));
 			}
 		} catch (error) {
 			console.error('Error searching cards:', error);
@@ -125,7 +129,13 @@ const PokeList: React.FC<IPokeListProps> = ({
 								/>
 								<h2 className='text-xl mt-2'>{card.name}</h2>
 								<p>{card.supertype}</p>
-								<p>{card.subtypes?.join(', ')}</p>
+								<a
+									href={card.cardmarket?.url}
+									target='_blank'
+									className='text-blue-500 font-bold underline'
+								>
+									Cardmarket
+								</a>
 								<button
 									onClick={() => !isAdded && dispatch(addCard(card))}
 									disabled={isAdded}

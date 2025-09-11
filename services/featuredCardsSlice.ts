@@ -1,4 +1,3 @@
-// services/featuredCardsSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface Card {
@@ -8,16 +7,19 @@ interface Card {
 		small: string;
 		large: string;
 	};
+	cardmarket: any;
 	supertype?: string;
 	subtypes?: string[];
 }
 
 interface FeaturedCardsState {
 	value: Card[];
+	isSearchActive: boolean;
 }
 
 const initialState: FeaturedCardsState = {
 	value: [],
+	isSearchActive: false,
 };
 
 const featuredCardsSlice = createSlice({
@@ -26,14 +28,20 @@ const featuredCardsSlice = createSlice({
 	reducers: {
 		setFeaturedCards: (state, action: PayloadAction<Card[]>) => {
 			state.value = action.payload;
+			state.isSearchActive = false;
+		},
+		setSearchResults: (state, action: PayloadAction<Card[]>) => {
+			state.value = action.payload;
+			state.isSearchActive = true;
 		},
 		clearFeaturedCards: (state) => {
 			state.value = [];
+			state.isSearchActive = false;
 		},
 	},
 });
 
-export const { setFeaturedCards, clearFeaturedCards } =
+export const { setFeaturedCards, setSearchResults, clearFeaturedCards } =
 	featuredCardsSlice.actions;
 
 export default featuredCardsSlice.reducer;
